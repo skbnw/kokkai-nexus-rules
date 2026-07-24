@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kokkai-nexus-rules/schemas/evidence.enum.json",
+  "title": "evidence",
+  "description": "出席・発言の根拠種別。COMMON_RULES.md §5-8-a が正本。admin/ingest・YouTube（§5-7）・TV放送（§5-9）で共通利用する。同一人物への根拠が複数種類重なるほど confidence が上がる設計とする。",
+  "type": "string",
+  "enum": ["roster", "sns_self", "broadcast_telop", "interview", "photo_tag", "broadcast_cc", "manual"],
+  "meta": {
+    "roster": { "label": "名簿・議事録記載", "reliability": "最高（公的記録）" },
+    "sns_self": { "label": "本人がSNS・ブログで報告", "reliability": "高（本人発信）" },
+    "broadcast_telop": { "label": "放送中のテロップ（画面上の氏名表示）による確認", "reliability": "高（放送局が人物を確定させた表示）", "introduced_in": "§5-9" },
+    "interview": { "label": "取材による確認", "reliability": "記名必須" },
+    "photo_tag": { "label": "写真に写っている", "reliability": "誤認リスクあり" },
+    "broadcast_cc": { "label": "放送の生字幕テキストに言及があるのみ（映像上の本人確認なし）", "reliability": "中〜低（誤変換・話者不明のリスク）", "introduced_in": "§5-9" },
+    "manual": { "label": "入力者の判断", "reliability": "要確認フラグ付き" }
+  }
+}

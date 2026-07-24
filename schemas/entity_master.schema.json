@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kokkai-nexus-rules/schemas/entity_master.schema.json",
+  "title": "EntityMaster",
+  "description": "人物・政党の表記揺れ解決マスタ。COMMON_RULES.md §2-2・§6-1(Resolution)が正本。GraphRAGのResolution工程はこのマスタに対して同一性判断を行う。",
+  "type": "object",
+  "properties": {
+    "persons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["person_id", "canonical_name"],
+        "properties": {
+          "person_id": { "type": "string", "pattern": "^P[0-9]{6}$" },
+          "canonical_name": { "type": "string" },
+          "aliases": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "例: 「高市大臣」「高市早苗」等の表記揺れ"
+          },
+          "name_of_house": { "type": ["string", "null"], "description": "同名異人の判別に使用（衆院/参院）" },
+          "talent_id": { "type": ["string", "null"], "description": "T-Clip DB由来。政治家の場合は必ずこのperson_idに紐付けること（§5-9-a）" }
+        }
+      }
+    },
+    "parties": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["party_id", "name", "valid_from"],
+        "properties": {
+          "party_id": { "type": "string" },
+          "name": { "type": "string" },
+          "valid_from": { "type": "string", "format": "date" },
+          "valid_to": { "type": ["string", "null"], "format": "date" },
+          "predecessor_party_id": {
+            "type": ["string", "null"],
+            "description": "改称・合流・分裂は上書きせず期間付きレコードで表現する（§2-2）"
+          }
+        }
+      }
+    }
+  }
+}

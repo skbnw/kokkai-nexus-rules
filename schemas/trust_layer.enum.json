@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kokkai-nexus-rules/schemas/trust_layer.enum.json",
+  "title": "trust_layer",
+  "description": "情報の信頼性レイヤー。COMMON_RULES.md §3-2 が正本。裸の数字（layer: 3 等）を使わず、必ずこの列挙値を使うこと（§3-1）。",
+  "type": "string",
+  "enum": ["L1", "L2", "L3", "L4", "L5"],
+  "meta": {
+    "L1": {
+      "label": "公開・静的",
+      "examples": ["国会会議録", "選挙結果", "政治資金収支報告書", "官報", "政府白書の統計表"],
+      "trust_score_default": 5,
+      "copyright": "著作権法13条により権利なし",
+      "access": "public"
+    },
+    "L2": {
+      "label": "公開・動的",
+      "examples": ["議員公式SNS", "政党発表", "報道記事見出し", "TV放送番組（§5-9）"],
+      "trust_score_default": 3,
+      "copyright": "引用の範囲内。本文は原則リンクのみ",
+      "access": "public"
+    },
+    "L3": {
+      "label": "独自構造化",
+      "examples": ["議員ネットワーク図", "資金フロー分析", "AI推論タグ"],
+      "trust_score_default": null,
+      "copyright": "運営者に帰属",
+      "access": "public"
+    },
+    "L4": {
+      "label": "取材・注釈",
+      "examples": ["党内序列", "実質的影響力", "政策形成への関与度（記名・出典明示）"],
+      "trust_score_default": null,
+      "copyright": "取材者に帰属。運営者が利用許諾を取得",
+      "access": "login_required",
+      "note": "掲載基準は COMMON_RULES.md §3-4 を全項充足すること。商用流用は §3-6 の commercial_use_allowed フラグに従う"
+    },
+    "L5": {
+      "label": "本人証言",
+      "examples": ["政治家手記", "回顧録", "インタビュー記録"],
+      "trust_score_default": null,
+      "copyright": "引用の範囲内",
+      "access": "login_required"
+    }
+  }
+}

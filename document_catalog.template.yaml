@@ -1,0 +1,47 @@
+# document_catalog.yaml
+# 全データのメタデータを一元定義する中央資料目録（COMMON_RULES.md §8-3）。
+# 実運用ではこのテンプレートをコピーし、各エントリを追加していく。
+
+# --- 記入例（白書・§5-6） ---
+- document_id: "WP-BOUEI-2025"
+  document_kind: "white_paper"
+  title: "防衛白書 令和7年版"
+  publisher: "防衛省"
+  fiscal_year: 2025
+  theme_id: "TH-DEFENSE-001"
+  trust_layer: "L1"
+  trust_score: 5
+  is_official_narrative_sections: true   # §5-6-a: 統計と政策的記述が混在する旨のフラグ
+  extraction_method: "native_text"       # ocr | native_text（§5-6-c）
+  storage_tier: "hot"                    # hot(頻繁に参照) | cold(アーカイブ)
+  bronze_path: "gs://polidata-master-bucket/raw/whitepapers/bouei/2025/"
+  supersedes: null
+
+# --- 記入例（先例集） ---
+- document_id: "PREC-SHUGIIN-2020"
+  document_kind: "precedent_collection"
+  title: "衆議院先例集"
+  publisher: "衆議院"
+  fiscal_year: null
+  theme_id: null
+  trust_layer: "L1"
+  trust_score: 5
+  extraction_method: "ocr"
+  storage_tier: "cold"
+  bronze_path: "gs://polidata-master-bucket/raw/precedents/shugiin/"
+  supersedes: null   # 改正時のみ新エントリを追加し、旧版は archived にする（削除しない）
+
+# --- 記入例（TV放送・§5-9） ---
+- document_id: "TS-NHK-NICHIYOTOURON-20260719"
+  document_kind: "broadcast_ts"
+  title: "日曜討論 2026年7月19日放送分"
+  publisher: "NHK"
+  fiscal_year: null
+  theme_id: "TH-SHUIN2026-002"
+  trust_layer: "L2"
+  trust_score: 3   # 番組全体としてのスコア。テロップ確認済みの逐語発言は個別にtrust_score 4を付与（§5-9-d）
+  extraction_method: "arib_cc_decode+telop_ocr"
+  storage_tier: "hot"
+  bronze_path: "gs://polidata-master-bucket/raw/tclip/nhk/2026/07/19/"
+  public_facing: false   # §5-9-f: TS原本は非公開。対外提供は構造化事実と短い引用のみ
+  supersedes: null

@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kokkai-nexus-rules/schemas/event_type.enum.json",
+  "title": "event_type",
+  "description": "events.event_type の列挙値。COMMON_RULES.md §5-8-b が正本。",
+  "type": "string",
+  "enum": ["plenary", "committee", "caucus", "party_meeting", "study_group", "press", "broadcast_program", "other"],
+  "meta": {
+    "plenary": { "label": "本会議" },
+    "committee": { "label": "委員会" },
+    "caucus": { "label": "議連・会派活動" },
+    "party_meeting": { "label": "党内会合" },
+    "study_group": { "label": "勉強会" },
+    "press": { "label": "記者会見（一人の登壇者・記者からの質疑という構造）" },
+    "broadcast_program": { "label": "討論番組・報道特番等（複数の政党代表・出演者が並ぶ構造）", "introduced_in": "§5-9", "note": "press と構造が異なるため混同しない" },
+    "other": { "label": "その他" }
+  }
+}

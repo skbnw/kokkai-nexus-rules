@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://kokkai-nexus-rules/schemas/event.schema.json",
+  "title": "Event",
+  "description": "events テーブルの基本形。COMMON_RULES.md §2-1・§5-8・cursor_session_summary.md を統合した参照スキーマ。実際のSupabase migrationはこれを土台にリポジトリ側で拡張する。",
+  "type": "object",
+  "required": ["event_id", "event_type", "occurred_on", "created_by"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "pattern": "^EV-[0-9]{8}-[0-9]{4}$",
+      "description": "COMMON_RULES §2-1参照。発番はSupabase側でアトミックに行う。この文字列をクエリのフィルタ条件に使わないこと"
+    },
+    "event_type": { "$ref": "event_type.enum.json" },
+    "occurred_on": {
+      "type": "string",
+      "format": "date",
+      "description": "時系列フィルタリングは必ずこのカラムを使う。event_id文字列のパースをMUST NOT"
+    },
+    "theme_id": {
+      "type": ["string", "null"],
+      "pattern": "^TH-[A-Z0-9]+-[0-9]{3}$"
+    },
+    "trust_layer": { "$ref": "trust_layer.enum.json" },
+    "trust_score": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
+    "source_count": { "type": "integer", "minimum": 0, "description": "トリガーで自動集計" },
+    "confirmed_attendee_count": { "type": "integer", "minimum": 0, "description": "トリガーで自動集計" },
+    "is_hidden": { "type": "boolean", "default": false, "description": "非削除原則（§1-P2）。物理削除の代わりにこのフラグを用いる" },
+    "created_by": { "type": "string", "description": "auth.users(id) に紐づく" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": true
+}
