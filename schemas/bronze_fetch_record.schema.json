@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://polidata.local/schemas/bronze_fetch_record.schema.json",
+  "title": "Bronze fetch record",
+  "description": "COMMON_RULES.md Bronze取得契約 v1.0 に対応する取得レコード。外部から取得した全データについて、取得1回につき1件作成する。取得に失敗した場合も作成する。",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "fetch_id",
+    "bronze_contract_version",
+    "collector_id",
+    "collector_version",
+    "source_id",
+    "acquisition_method",
+    "fetched_at",
+    "outcome"
+  ],
+
+  "properties": {
+    "fetch_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7。取得1回ごとに発番し、以後変更しない。意味を埋め込まないこと。"
+    },
+    "display_id": {
+      "type": ["string", "null"],
+      "description": "人間可読な補助識別子。可変であり一意制約を課さない。主キーとして使用してはならない。"
+    },
+    "bronze_contract_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "取得時点で適用されていた契約バージョン。事後に書き換えてはならない。"
+    },
+
+    "collector_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "収集器の識別子。"
+    },
+    "collector_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "git commit hash または semver。抽出結果の再現に必要。"
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "収集源マスタへの参照。"
+    },
+    "acquisition_method": {
+      "type": "string",
+      "enum": [
+        "http_scrape",
+        "http_api",
+        "browser_automation",
+        "file_upload",
+        "manual",
+        "physical_capture",
+        "third_party_delivery"
+      ]
+    },
+
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "RFC 3339。タイムゾーンオフセット必須。省略した時刻は無効とする。"
+    },
+
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "success",
+        "not_found",
+        "forbidden",
+        "rate_limited",
+        "timeout",
+        "network_error",
+        "content_changed_unexpectedly",
+        "skipped_by_rule"
+      ],
+      "description": "取得結果。success 以外の場合もレコードを作成すること。"
+    },
+    "failure_detail": {
+      "type": ["string", "null"],
+      "description": "outcome が success 以外の場合の具体的事由。"
+    },
+
+    "requested_url": {
+      "type": ["string", "null"],
+      "description": "実際にリクエストしたURL。HTTP取得では必須。"
+    },
+    "final_url": {
+      "type": ["string", "null"],
+      "description": "リダイレクト後の最終URL。リダイレクトが無い場合も requested_url と同値を記録する。"
+    },
+    "redirect_chain": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from_url", "to_url", "status"],
+        "properties": {
+          "from_url": { "type": "string" },
+          "to_url": { "type": "string" },
+          "status": { "type": "integer" }
+        }
+      },
+      "description": "リダイレクトが無い場合は空配列。null にしない。"
+    },
+    "http_method": {
+      "type": ["string", "null"],
+      "enum": ["GET", "POST", "HEAD", null]
+    },
+    "http_status": {
+      "type": ["integer", "null"],
+      "minimum": 100,
+      "maximum": 599
+    },
+    "response_headers": {
+      "type": ["object", "null"],
+      "additionalProperties": { "type": "string" },
+      "description": "全レスポンスヘッダ。Last-Modified / ETag / Content-Type を含めること。"
+    },
+    "request_headers_sent": {
+      "type": ["object", "null"],
+      "additionalProperties": { "type": "string" },
+      "description": "送信したヘッダ。認証情報の値は含めず、キー名のみ記録する。"
+    },
+
+    "content_hash": {
+      "type": ["string", "null"],
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "デコード前バイト列の sha256（小文字16進）。outcome が success の場合は必須。"
+    },
+    "content_length": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "content_type_declared": {
+      "type": ["string", "null"],
+      "description": "サーバーが宣言した Content-Type。"
+    },
+    "content_type_sniffed": {
+      "type": ["string", "null"],
+      "description": "実バイト列から判定した MIME type。宣言と食い違う場合があるため別に持つ。"
+    },
+    "storage_uri": {
+      "type": ["string", "null"],
+      "description": "原本バイト列の保存先。例: gs://polidata-master-bucket/raw/..."
+    },
+    "encoding_declared": {
+      "type": ["string", "null"],
+      "description": "宣言された文字コード。取得時点では変換せず、記録のみ行う。"
+    },
+
+    "rights_snapshot": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["rights_checked_at"],
+      "properties": {
+        "robots_txt_fetch_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "robots.txt を取得した fetch_record への参照。7日以内のキャッシュ再利用可。"
+        },
+        "robots_allows": {
+          "type": ["boolean", "null"],
+          "description": "判定不能な場合は null。推測で埋めない。"
+        },
+        "robots_user_agent": {
+          "type": ["string", "null"],
+          "description": "robots 判定に用いた User-Agent。"
+        },
+        "terms_fetch_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "利用規約ページを取得した fetch_record への参照。規約ページが存在しない場合 null。"
+        },
+        "license_declared": {
+          "type": ["string", "null"],
+          "description": "ページまたはAPIが明示するライセンス表記の原文。"
+        },
+        "rights_checked_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+
+    "capture": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "acquisition_method が physical_capture の場合に使用する。",
+      "properties": {
+        "device_id": { "type": "string" },
+        "channel": { "type": ["string", "null"] },
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": { "type": "string", "format": "date-time" },
+        "signal_quality_note": { "type": ["string", "null"] }
+      }
+    },
+
+    "manual_acquisition": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "acquisition_method が manual / file_upload / third_party_delivery の場合に使用する。",
+      "properties": {
+        "acquired_by": {
+          "type": "string",
+          "description": "取得した人物の識別子。P5（人間確定）の要件に対応する。"
+        },
+        "acquisition_note": { "type": ["string", "null"] },
+        "original_filename": { "type": ["string", "null"] }
+      },
+      "required": ["acquired_by"]
+    },
+
+    "notes": {
+      "type": ["string", "null"]
+    }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "properties": { "outcome": { "const": "success" } },
+        "required": ["outcome"]
+      },
+      "then": {
+        "required": ["content_hash", "content_length", "storage_uri", "rights_snapshot"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "acquisition_method": {
+            "enum": ["http_scrape", "http_api", "browser_automation"]
+          }
+        },
+        "required": ["acquisition_method"]
+      },
+      "then": {
+        "required": [
+          "requested_url",
+          "final_url",
+          "redirect_chain",
+          "http_method",
+          "http_status",
+          "response_headers"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": { "acquisition_method": { "const": "physical_capture" } },
+        "required": ["acquisition_method"]
+      },
+      "then": { "required": ["capture"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "acquisition_method": {
+            "enum": ["manual", "file_upload", "third_party_delivery"]
+          }
+        },
+        "required": ["acquisition_method"]
+      },
+      "then": { "required": ["manual_acquisition"] }
+    },
+    {
+      "if": {
+        "not": {
+          "properties": { "outcome": { "const": "success" } },
+          "required": ["outcome"]
+        }
+      },
+      "then": { "required": ["failure_detail"] }
+    }
+  ],
+
+  "$defs": {
+    "coverage_log_entry": {
+      "title": "Coverage log entry",
+      "description": "そもそも巡回が実行されなかった期間の記録。fetch_record とは別テーブルで管理する。",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coverage_id",
+        "collector_id",
+        "window_start",
+        "window_end",
+        "gap_reason"
+      ],
+      "properties": {
+        "coverage_id": { "type": "string", "format": "uuid" },
+        "collector_id": { "type": "string" },
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "expected_runs": { "type": ["integer", "null"], "minimum": 0 },
+        "actual_runs": { "type": ["integer", "null"], "minimum": 0 },
+        "gap_reason": {
+          "type": "string",
+          "enum": [
+            "not_yet_implemented",
+            "infrastructure_outage",
+            "source_unavailable",
+            "intentionally_paused",
+            "unknown"
+          ],
+          "description": "unknown を許容する。遡って理由を捏造してはならない。"
+        },
+        "gap_note": { "type": ["string", "null"] },
+        "recorded_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
