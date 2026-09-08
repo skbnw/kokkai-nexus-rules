@@ -1,7 +1,7 @@
 # 共通開発ルール（COMMON RULES）
 
 **適用対象**: Kokkai Nexus / PoliDATA 系全リポジトリ
-**版**: v1.6（2026-08-03）
+**版**: v1.7（2026-09-08）
 **位置づけ**: 本ファイルは全リポジトリの上位規範である。各リポジトリの `CLAUDE.md`・実装・設計判断は本ファイルに従う。本ファイルと個別ドキュメントが矛盾した場合、本ファイルが優先する。
 
 ---
@@ -109,6 +109,27 @@ LLM 出力を無確認で確定データへ昇格させることを MUST NOT と
 
 - スラッグ部分は英大文字・数字・ハイフンのみに正規化する（例: `DEFENSE`, `SHUIN2026`）。日本語や表記揺れ（`BOUEI` と `DEFENSE` 等）が並立しないよう、`theme_slug_registry`（Supabase内の一覧テーブルまたは `kokkai-nexus-rules` 側のマスタ）で一元管理する。
 - 新規テーマ作成時は、既存スラッグとのあいまい一致チェック（表記揺れ・同義語）を経て、**人間が最終確認**したうえで登録する。自動生成のみでの新規スラッグ発行は MUST NOT。
+
+**c. 外部システムの安定キー（MUST・ADR-0004）**
+
+外部システム（別DB・別パイプライン）が独自のIDでレコードを持つ場合、そのIDを本体テーブルの外部キーに直接使ってはならない。`<system>_external_ids` 形式の対応表で受ける。
+
+```sql
+create table event_external_ids (
+  event_id    text not null references events(event_id),
+  system      text not null,          -- 例: 'polidata_schedule_sqlite'
+  external_id text not null,          -- 決定論的に再現できる安定キー
+  external_pk text,                   -- 相手システムの内部ID（監査用）
+  synced_at   timestamptz not null default now(),
+  primary key (system, external_id)
+);
+```
+
+- `external_id` には、**再実行しても同じ入力から同じ値が得られる決定論的なキー**を用いる（MUST）。連番・自動採番・挿入順に依存する値を用いることを MUST NOT とする
+- 相手システムの内部ID（連番等）は `external_pk` に監査用として保持してよいが、**結合条件に使わない**（§2-1a と同じ精神）
+- `primary key (system, external_id)` により、同じ外部レコードが二重にIDを発番されることを防ぐ
+
+> 理由: 冪等な再構築（`DROP TABLE` して作り直す設計）を行うパイプラインでは、連番IDは実行のたびに別のレコードを指しうる。例外もエラーも出ず、データだけが静かにずれるため発見が極めて遅れる。
 
 ### 2-2. 命名の一貫性
 
@@ -227,8 +248,13 @@ PoliData側が提供する分析（政策決定プロセスの構造分析・リ
 | 日程・カレンダー・法案ステータス・確定データの正本 | **Supabase (RDB)** | 条件絞り込み・アラート発火など決定的処理 |
 | 議事録・字幕・発言録の意味検索 | **Pinecone (Vector)** | 文脈・ニュアンス検索（RAG） |
 | 検証済みマスタデータ | `kokkai-nexus-master`（Git Submodule） | 版管理・差分レビューが必要なもの |
+| 収集直後の名寄せ・重複統合の作業場 | **SQLite（各収集リポ内）** | 冪等な再構築（毎回作り直す）が前提の中間処理。正本ではない（§4-2a） |
 
 **原則**: 「答え合わせができる事実」は RDB、「言葉のニュアンス」は Vector。どちらに置くか迷ったら RDB を正本とし、Vector は派生とみなす（Vector は再構築可能でなければならない）。
+
+**a. 収集リポ内 SQLite の位置づけ（ADR-0004）**
+
+収集リポジトリが内部に持つ SQLite は、**Bronze と Silver の間の名寄せ・重複統合の作業場**であり、`event_id` 等の共通IDを発番する場所ではない（§2-1）。外部への公開は Datasette 等による読み取り配信に限り、他システムはその内部IDを参照しない。Supabase への昇格は §2-1c の対応表を経由する。
 
 ### 4-3. 接続方式
 
@@ -552,10 +578,29 @@ trust_score: 5
 
 **b. event_type 列挙**
 
-`plenary` / `committee` / `caucus` / `party_meeting` / `study_group` / `press` / `broadcast_program`（新設・§5-9） / `other`
+`plenary` / `committee` / `caucus` / `party_meeting` / `study_group` / `press` / `broadcast_program`（§5-9） / `election`（ADR-0003） / `gazette`（ADR-0003） / `cabinet_decision`（ADR-0003） / `other`
 
 - `press`: 記者会見（一人の登壇者・記者からの質疑という構造）
 - `broadcast_program`: 討論番組・報道特番等（複数の政党代表・出演者が並ぶ構造）。両者は構造が異なるため、混同しない。
+- `election`: 選挙の**投開票**という単一事象。**公示・告示は官報に載る公的行為であり `gazette` で表現する**。同一選挙の公示と投開票は別イベントとし、同じ `theme_id` で束ねる。
+- `gazette`: 官報における公布・公示。`trust_layer` L1 / `trust_score` 5（§3-2・§3-3）。
+- `cabinet_decision`: 閣議1回（定例・臨時・持ち回り・繰上げ・初閣議）。**会議体の開催**を指し、個々の「◯◯を決定した」は案件として `event_links` にぶら下げる。
+
+**c. 粒度の線引き（MUST・ADR-0003）**
+
+`events` は「**会議体・事象の1回**」を表す。その中身（案件・候補者・公布事項）を `events` の行にしてはならない。中身は `event_links` にぶら下げる。背骨を明細で肥大させると、「1回の閣議」「1つの選挙」という事象そのものが表現できなくなり、`source_count` 等の集計単位も壊れる。
+
+| 対象 | events | event_links |
+|---|---|---|
+| 閣議 | 閣議1回（開催日＋種別） | 案件（`link_role='agenda'`） |
+| 選挙 | 1選挙（投開票） | 候補者・市町村別得票 |
+| 官報 | 1号 | 公布事項 |
+
+**d. 本列挙に統合しないもの（ADR-0003 §2-3）**
+
+`pm_activities.event_type`（`面会` / `会議` / `職務・公務` / `移動` / `メディア` / `その他`）は**首相の行動分類**であり、本列挙（会議体・事象の構造分類）とは目的が異なる。統合しない。ドメイン固有列として各テーブルに保持し、背骨に載せる際は `events.event_type` を別途与える。
+
+> 混ぜた場合の弊害: `plenary` と `移動` が同一の列挙に並び、会議体分類としても行動分類としても集計できなくなる。
 
 ### 5-9. テレビ放送TSデータの体系化
 
@@ -883,3 +928,4 @@ Claude Code には frontmatter（`globs:`）でファイル種別ごとに条件
 | v1.4 | 2026-07-24 | §4-4「物理バックアップ（事業継続計画・BCP）」を新設し、3-2-1ルールを正式に規約化。§5-8「証拠（evidence）・event_typeの統一登録簿」を新設し、既存の`roster`/`sns_self`/`interview`/`photo_tag`/`manual`に加え`broadcast_telop`/`broadcast_cc`を追加、`event_type`に`broadcast_program`を追加。§5-9「テレビ放送TSデータの体系化」を新設（tclip担当、ARIB字幕デコード・テロップOCRによる話者同定優先順位、`talents`テーブルの`person_id`一元化、trust_score 4の適用条件、著作権上の非公開原則、3-2-1バックアップとの関係） |
 | v1.5 | 2026-07-24 | §9-4「AIエージェントへの指示」を全面改訂。`COMMON_RULES.md`全文をClaude Codeの`CLAUDE.md`へ`@import`することを禁止し（200行超過によるコンテキスト消費・指示追従性低下という公式ドキュメントの制約に基づく）、100行程度のダイジェスト`CLAUDE_CORE.md`と各リポ用`CLAUDE.md.template`を新設。`kokkai-nexus-rules`の収録物（§0-1）を更新。`.claude/rules/*.md`の条件付きロードは当面見送り、未決事項Kとして記録 |
 | v1.6 | 2026-08-03 | §4a「Bronze 取得契約」を新設（§5系より前の位置に配置）。P2/P3の取得境界面における実装規定として、R1〜R5（不透明ID・取得文脈・デコード前バイト列・権利スナップショット・欠損記録）を明文化。`schemas/bronze_fetch_record.schema.json`（JSON Schema Draft 2020-12）を新設しCI検証を規定。`CLAUDE_CORE.md` にBronze取得契約要約ブロックを追記。Bronze取得契約バージョン v1.0 発効 |
+| v1.7 | 2026-09-08 | §5-8-b の `event_type` 列挙に `election` / `gazette` / `cabinet_decision` を追加（ADR-0003）。§5-8-c「粒度の線引き」を新設し、events は会議体・事象の1回を表し明細は `event_links` にぶら下げることを MUST 化。§5-8-d で `pm_activities.event_type`（行動分類）を本列挙に統合しない旨を明記。§2-1c「外部システムの安定キー」を新設し、`<system>_external_ids` 対応表と決定論的キーの使用を MUST 化（ADR-0004。冪等な再構築を行うパイプラインの連番IDは実行のたびに別レコードを指しうるため）。§4-2 に収集リポ内 SQLite（名寄せ作業場・正本ではない）の位置づけを追記。`schemas/event_type.enum.json` を更新 |

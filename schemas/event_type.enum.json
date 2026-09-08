@@ -2,9 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://kokkai-nexus-rules/schemas/event_type.enum.json",
   "title": "event_type",
-  "description": "events.event_type の列挙値。COMMON_RULES.md §5-8-b が正本。",
+  "description": "events.event_type の列挙値。COMMON_RULES.md §5-8-b が正本。events は「会議体・事象の1回」を表し、その中身（案件・候補者・公布事項）は event_links にぶら下げる（§5-8-c）。",
   "type": "string",
-  "enum": ["plenary", "committee", "caucus", "party_meeting", "study_group", "press", "broadcast_program", "other"],
+  "enum": ["plenary", "committee", "caucus", "party_meeting", "study_group", "press", "broadcast_program", "election", "gazette", "cabinet_decision", "other"],
   "meta": {
     "plenary": { "label": "本会議" },
     "committee": { "label": "委員会" },
@@ -13,6 +13,15 @@
     "study_group": { "label": "勉強会" },
     "press": { "label": "記者会見（一人の登壇者・記者からの質疑という構造）" },
     "broadcast_program": { "label": "討論番組・報道特番等（複数の政党代表・出演者が並ぶ構造）", "introduced_in": "§5-9", "note": "press と構造が異なるため混同しない" },
+    "election": { "label": "選挙（投開票）", "introduced_in": "ADR-0003", "granularity": "1選挙 = 1イベント。候補者・選挙区・得票は event_links", "note": "公示・告示は官報に載る公的行為であり gazette で表現する。同一選挙の公示と投開票は別イベントとし、同じ theme_id で束ねる" },
+    "gazette": { "label": "官報（公布・公示）", "introduced_in": "ADR-0003", "granularity": "官報1号 = 1イベント。個々の公布事項は event_links", "note": "trust_layer L1 / trust_score 5（§3-2・§3-3）" },
+    "cabinet_decision": { "label": "閣議（定例・臨時・持ち回り・繰上げ・初閣議）", "introduced_in": "ADR-0003", "granularity": "閣議1回 = 1イベント。個々の案件は event_links の link_role='agenda'", "note": "会議体の開催を指す。「◯◯を決定した」という個別案件はイベントにしない" },
     "other": { "label": "その他" }
+  },
+  "excluded": {
+    "pm_activities.event_type": {
+      "values": ["面会", "会議", "職務・公務", "移動", "メディア", "その他"],
+      "reason": "首相の行動分類であり、本列挙（会議体・事象の構造分類）とは目的が異なる。統合しない（ADR-0003 §2-3）"
+    }
   }
 }
