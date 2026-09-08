@@ -1,7 +1,7 @@
 # 共通開発ルール（COMMON RULES）
 
 **適用対象**: Kokkai Nexus / PoliDATA 系全リポジトリ
-**版**: v1.7（2026-09-08）
+**版**: v1.8（2026-09-08）
 **位置づけ**: 本ファイルは全リポジトリの上位規範である。各リポジトリの `CLAUDE.md`・実装・設計判断は本ファイルに従う。本ファイルと個別ドキュメントが矛盾した場合、本ファイルが優先する。
 
 ---
@@ -578,13 +578,18 @@ trust_score: 5
 
 **b. event_type 列挙**
 
-`plenary` / `committee` / `caucus` / `party_meeting` / `study_group` / `press` / `broadcast_program`（§5-9） / `election`（ADR-0003） / `gazette`（ADR-0003） / `cabinet_decision`（ADR-0003） / `other`
+`plenary` / `committee` / `caucus` / `party_meeting` / `study_group` / `press` / `broadcast_program`（§5-9） / `election`（ADR-0003） / `gazette`（ADR-0003） / `cabinet_decision`（ADR-0003） / `statistics_release`（ADR-0005） / `advisory_council`（ADR-0005） / `court`（ADR-0005） / `diplomacy`（ADR-0005） / `policy_schedule`（ADR-0005） / `other`
 
 - `press`: 記者会見（一人の登壇者・記者からの質疑という構造）
 - `broadcast_program`: 討論番組・報道特番等（複数の政党代表・出演者が並ぶ構造）。両者は構造が異なるため、混同しない。
 - `election`: 選挙の**投開票**という単一事象。**公示・告示は官報に載る公的行為であり `gazette` で表現する**。同一選挙の公示と投開票は別イベントとし、同じ `theme_id` で束ねる。
 - `gazette`: 官報における公布・公示。`trust_layer` L1 / `trust_score` 5（§3-2・§3-3）。
 - `cabinet_decision`: 閣議1回（定例・臨時・持ち回り・繰上げ・初閣議）。**会議体の開催**を指し、個々の「◯◯を決定した」は案件として `event_links` にぶら下げる。
+- `statistics_release`: 統計・指標の公表（GDP速報・短観・貿易統計・月例経済報告）。政策判断の入力となる定期公表。「短観の翌週に金融政策決定会合」のような時系列の連鎖を追うために独立させる。
+- `advisory_council`: 行政の諮問機関（審議会・分科会・部会・懇談会・検討会）。**国会の `committee` とは別**。
+- `court`: 判決・公判。選挙訴訟・行政訴訟を含む。
+- `diplomacy`: 首脳・閣僚級の外交日程（首脳会談・外相会談・G7/G20・国際会合）。
+- `policy_schedule`: 政策・政局に関わるが上記のいずれにも確定できないもの。**`other` の受け皿を分離**し、`other` を「分類の失敗」の指標として使えるようにする。
 
 **c. 粒度の線引き（MUST・ADR-0003）**
 
@@ -601,6 +606,30 @@ trust_score: 5
 `pm_activities.event_type`（`面会` / `会議` / `職務・公務` / `移動` / `メディア` / `その他`）は**首相の行動分類**であり、本列挙（会議体・事象の構造分類）とは目的が異なる。統合しない。ドメイン固有列として各テーブルに保持し、背骨に載せる際は `events.event_type` を別途与える。
 
 > 混ぜた場合の弊害: `plenary` と `移動` が同一の列挙に並び、会議体分類としても行動分類としても集計できなくなる。
+
+**e. 背骨の収録範囲（MUST・ADR-0005）**
+
+`events`（背骨）に収録するのは、**政策・政局・選挙・行政・司法に関わる事象**に限る。
+判断に迷う場合の基準は §1-P7「後世の検証に必要か」とする。
+
+**収集層と背骨で、絞る位置を分ける（MUST）**
+
+| 層 | 方針 |
+|---|---|
+| 収集（Bronze・名寄せ） | **網羅的に取得する。ここで絞らない**。一度取り損ねた期間は事後に復元できない（§4a） |
+| 背骨への昇格 | **選別する**。ソースごとに「どの部分を背骨に上げるか」を昇格の前に決める |
+
+新しいソースを背骨へ接続する前に、この線引きを明示すること。実装してから考えると、
+範囲外のレコードが背骨に混入したまま運用が始まる。
+
+**範囲外レコードの扱い**
+
+物理削除しない（§1-P2）。`is_hidden = true` ＋ `hide_reason` に判断根拠を記録する。
+`hide_reason` を空のまま非表示にすることを MUST NOT とする（理由なき非表示は検証できない）。
+範囲の判断が後日変われば `is_hidden = false` で戻せる。
+
+> 実例（ADR-0005）: 時事通信の総合取材カレンダーを選別せずに投入した結果、
+> F1のレース日程・映画祭・株主総会が背骨に入った。収集は正しかったが、昇格の選別が無かった。
 
 ### 5-9. テレビ放送TSデータの体系化
 
@@ -929,3 +958,4 @@ Claude Code には frontmatter（`globs:`）でファイル種別ごとに条件
 | v1.5 | 2026-07-24 | §9-4「AIエージェントへの指示」を全面改訂。`COMMON_RULES.md`全文をClaude Codeの`CLAUDE.md`へ`@import`することを禁止し（200行超過によるコンテキスト消費・指示追従性低下という公式ドキュメントの制約に基づく）、100行程度のダイジェスト`CLAUDE_CORE.md`と各リポ用`CLAUDE.md.template`を新設。`kokkai-nexus-rules`の収録物（§0-1）を更新。`.claude/rules/*.md`の条件付きロードは当面見送り、未決事項Kとして記録 |
 | v1.6 | 2026-08-03 | §4a「Bronze 取得契約」を新設（§5系より前の位置に配置）。P2/P3の取得境界面における実装規定として、R1〜R5（不透明ID・取得文脈・デコード前バイト列・権利スナップショット・欠損記録）を明文化。`schemas/bronze_fetch_record.schema.json`（JSON Schema Draft 2020-12）を新設しCI検証を規定。`CLAUDE_CORE.md` にBronze取得契約要約ブロックを追記。Bronze取得契約バージョン v1.0 発効 |
 | v1.7 | 2026-09-08 | §5-8-b の `event_type` 列挙に `election` / `gazette` / `cabinet_decision` を追加（ADR-0003）。§5-8-c「粒度の線引き」を新設し、events は会議体・事象の1回を表し明細は `event_links` にぶら下げることを MUST 化。§5-8-d で `pm_activities.event_type`（行動分類）を本列挙に統合しない旨を明記。§2-1c「外部システムの安定キー」を新設し、`<system>_external_ids` 対応表と決定論的キーの使用を MUST 化（ADR-0004。冪等な再構築を行うパイプラインの連番IDは実行のたびに別レコードを指しうるため）。§4-2 に収集リポ内 SQLite（名寄せ作業場・正本ではない）の位置づけを追記。`schemas/event_type.enum.json` を更新 |
+| v1.8 | 2026-09-08 | §5-8-b に `statistics_release` / `advisory_council` / `court` / `diplomacy` / `policy_schedule` を追加（ADR-0005）。`policy_schedule` を設けて `other` の受け皿を分離し、`other` を「分類の失敗」の指標として使えるようにした。**§5-8-e「背骨の収録範囲」を新設**し、収集層は網羅的・背骨への昇格時に選別するという線引きを MUST 化。範囲外レコードは物理削除せず `is_hidden` ＋ `hide_reason`（理由なき非表示は MUST NOT）。`schemas/event_type.enum.json` を更新 |

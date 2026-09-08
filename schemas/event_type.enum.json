@@ -2,12 +2,29 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://kokkai-nexus-rules/schemas/event_type.enum.json",
   "title": "event_type",
-  "description": "events.event_type の列挙値。COMMON_RULES.md §5-8-b が正本。events は「会議体・事象の1回」を表し、その中身（案件・候補者・公布事項）は event_links にぶら下げる（§5-8-c）。",
+  "description": "events.event_type の列挙値。COMMON_RULES.md §5-8-b が正本。events は「会議体・事象の1回」を表し、その中身（案件・候補者・公布事項）は event_links にぶら下げる（§5-8-c）。収録範囲は §5-8-e。",
   "type": "string",
-  "enum": ["plenary", "committee", "caucus", "party_meeting", "study_group", "press", "broadcast_program", "election", "gazette", "cabinet_decision", "other"],
+  "enum": [
+    "plenary",
+    "committee",
+    "caucus",
+    "party_meeting",
+    "study_group",
+    "press",
+    "broadcast_program",
+    "election",
+    "gazette",
+    "cabinet_decision",
+    "statistics_release",
+    "advisory_council",
+    "court",
+    "diplomacy",
+    "policy_schedule",
+    "other"
+  ],
   "meta": {
     "plenary": { "label": "本会議" },
-    "committee": { "label": "委員会" },
+    "committee": { "label": "委員会", "note": "国会の委員会。行政の諮問機関は advisory_council" },
     "caucus": { "label": "議連・会派活動" },
     "party_meeting": { "label": "党内会合" },
     "study_group": { "label": "勉強会" },
@@ -16,7 +33,12 @@
     "election": { "label": "選挙（投開票）", "introduced_in": "ADR-0003", "granularity": "1選挙 = 1イベント。候補者・選挙区・得票は event_links", "note": "公示・告示は官報に載る公的行為であり gazette で表現する。同一選挙の公示と投開票は別イベントとし、同じ theme_id で束ねる" },
     "gazette": { "label": "官報（公布・公示）", "introduced_in": "ADR-0003", "granularity": "官報1号 = 1イベント。個々の公布事項は event_links", "note": "trust_layer L1 / trust_score 5（§3-2・§3-3）" },
     "cabinet_decision": { "label": "閣議（定例・臨時・持ち回り・繰上げ・初閣議）", "introduced_in": "ADR-0003", "granularity": "閣議1回 = 1イベント。個々の案件は event_links の link_role='agenda'", "note": "会議体の開催を指す。「◯◯を決定した」という個別案件はイベントにしない" },
-    "other": { "label": "その他" }
+    "statistics_release": { "label": "統計・指標の公表", "introduced_in": "ADR-0005", "note": "GDP速報・短観・貿易統計・月例経済報告など、政策判断の入力となる定期公表。「短観の翌週に金融政策決定会合」のような時系列の連鎖を追うために独立させる" },
+    "advisory_council": { "label": "審議会・分科会", "introduced_in": "ADR-0005", "note": "行政の諮問機関（審議会・分科会・部会・懇談会・検討会）。国会の committee とは別" },
+    "court": { "label": "判決・公判", "introduced_in": "ADR-0005", "note": "司法。選挙訴訟・行政訴訟を含む。個人の刑事事件は §5-8-e の収録範囲で判断する" },
+    "diplomacy": { "label": "首脳・閣僚級の外交日程", "introduced_in": "ADR-0005", "note": "首脳会談・外相会談・G7/G20・国際会合" },
+    "policy_schedule": { "label": "政策関連の予定（開催形態が未確定）", "introduced_in": "ADR-0005", "note": "政策・政局に関わるが上記のいずれにも確定できないもの。other の受け皿を分離し、other を「分類の失敗」の指標として使えるようにする" },
+    "other": { "label": "その他", "note": "ここが増えたら分類設計を見直す合図とする" }
   },
   "excluded": {
     "pm_activities.event_type": {
