@@ -25,6 +25,7 @@ ADR-NNNN-<kebab-case-slug>.md
 | 0002 | `kokkai-nexus-rules` を独立リポジトリとして分離 | 既決 | ADR ファイル無し。決定理由は `COMMON_RULES.md` §0-1 に本文記載（「決定理由（ADR-0002 相当）」） |
 | 0003 | `event_type` に `election` / `gazette` / `cabinet_decision` を追加 | **承認** | 2026-09-08 起票・同日承認。COMMON_RULES v1.7 に反映済 |
 | 0004 | 二重の `events` 背骨の解消（Supabase ↔ SQLite） | **承認** | 2026-09-08 起票・同日承認。COMMON_RULES v1.7 に反映済 |
+| 0005 | 背骨の収録範囲（scope）と報道系日程の `event_type` | 提案中 | 2026-09-08 起票。§3-1（スポーツ448件の非表示化）のみ先行適用。§3-2 は要判断 |
 
 ## 状態の値
 
